@@ -48,15 +48,11 @@ const Article = ({ article, nextArticle, previousArticle }) => {
 }
 
 export async function getServerSideProps ({ params }) {
-  const articles = await fetchAPI(
-    `/articles?slug=${params.slug}&status=published`
-  )
-  const article = articles[0]
+  let queries = [fetchAPI(`/articles?slug=${params.slug}&status=published`)]
   const numArticles = await fetchAPI('/articles/count')
 
   let offset = 0
   const limit = 997 // Can only get 997 items from Strapi at one time.
-  let queries = []
   let articlesAdded = 0
   while (articlesAdded < numArticles) {
     queries.push(fetchAPI(`/articles?_start=${offset}&_limit=${limit}&status=published&_sort=publishedAt`))
@@ -65,11 +61,12 @@ export async function getServerSideProps ({ params }) {
   }
 
   const articleArr = await Promise.all(queries)
-  const allArticles = articleArr.reduce((a, b) => a.concat(b), [])
+  const article = articleArr[0][0]
+  const otherArticles = articleArr.slice(1).reduce((a, b) => a.concat(b), [])
 
-  // Find index of article in allArticles.
+  // Find index of article in otherArticles.
   for (let i = 0; i < numArticles; i++) {
-    if (allArticles[i].slug === article.slug) {
+    if (otherArticles[i].slug === article.slug) {
       var index = i
     };
   }
@@ -77,10 +74,10 @@ export async function getServerSideProps ({ params }) {
   let previousArticle = false
   let nextArticle = false
   if (index > 0) {
-    previousArticle = allArticles[index - 1].slug
+    previousArticle = otherArticles[index - 1].slug
   }
   if (numArticles > index + 1) {
-    nextArticle = allArticles[index + 1].slug
+    nextArticle = otherArticles[index + 1].slug
   }
 
   return {
