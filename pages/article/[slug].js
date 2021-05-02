@@ -52,18 +52,20 @@ export async function getServerSideProps ({ params }) {
     `/articles?slug=${params.slug}&status=published`
   )
   const article = articles[0]
-
   const numArticles = await fetchAPI('/articles/count')
 
-  let allArticles = []
   let offset = 0
-  const limit = 997
-  let currentArticles = []
-  while (allArticles.length < numArticles) {
-    currentArticles = await fetchAPI(`/articles?_start=${offset}&_limit=${limit}&status=published&_sort=publishedAt`)
-    allArticles = allArticles.concat(currentArticles)
+  const limit = 997 // Can only get 997 items from Strapi at one time.
+  let queries = []
+  let articlesAdded = 0
+  while (articlesAdded < numArticles) {
+    queries.push(fetchAPI(`/articles?_start=${offset}&_limit=${limit}&status=published&_sort=publishedAt`))
     offset += 997
+    articlesAdded += limit
   }
+
+  const articleArr = await Promise.all(queries)
+  const allArticles = articleArr.reduce((a, b) => a.concat(b), [])
 
   // Find index of article in allArticles.
   for (let i = 0; i < numArticles; i++) {
